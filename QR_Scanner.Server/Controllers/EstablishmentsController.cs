@@ -1,0 +1,339 @@
+using Microsoft.AspNetCore.Mvc;
+using QR_Scanner.Server.Models;
+using QR_Scanner.Server.Services;
+
+namespace QR_Scanner.Server.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class EstablishmentsController : ControllerBase
+    {
+        private readonly IFirebaseService _firebaseService;
+        private readonly ILogger<EstablishmentsController> _logger;
+        private const string CollectionName = "establishments";
+
+        public EstablishmentsController(IFirebaseService firebaseService, ILogger<EstablishmentsController> logger)
+        {
+            _firebaseService = firebaseService;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Get all establishments
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<List<Establishment>>> GetAll()
+        {
+            try
+            {
+                var establishments = await _firebaseService.GetAllAsync<Establishment>(CollectionName);
+                return Ok(establishments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all establishments");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get establishment by ID
+        /// </summary>
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Establishment>> GetById(string id)
+        {
+            try
+            {
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                if (establishment == null)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+                return Ok(establishment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get establishments by type
+        /// </summary>
+        [HttpGet("type/{type}")]
+        public async Task<ActionResult<List<Establishment>>> GetByType(EstablishmentType type)
+        {
+            try
+            {
+                var establishments = await _firebaseService.GetByFieldAsync<Establishment>(CollectionName, "Type", type);
+                return Ok(establishments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving establishments by type {Type}", type);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get establishments by city
+        /// </summary>
+        [HttpGet("city/{city}")]
+        public async Task<ActionResult<List<Establishment>>> GetByCity(string city)
+        {
+            try
+            {
+                var establishments = await _firebaseService.GetByFieldAsync<Establishment>(CollectionName, "City", city);
+                return Ok(establishments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving establishments by city {City}", city);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get active establishments only
+        /// </summary>
+        [HttpGet("active")]
+        public async Task<ActionResult<List<Establishment>>> GetActive()
+        {
+            try
+            {
+                var establishments = await _firebaseService.GetByFieldAsync<Establishment>(CollectionName, "IsActive", true);
+                return Ok(establishments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving active establishments");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Create a new establishment
+        /// </summary>
+        [HttpPost]
+        public async Task<ActionResult<Establishment>> Create([FromBody] Establishment establishment)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var id = await _firebaseService.CreateAsync(CollectionName, establishment);
+                establishment.Id = id;
+                
+                return CreatedAtAction(nameof(GetById), new { id }, establishment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating establishment");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Update an existing establishment
+        /// </summary>
+        [HttpPut("{id}")]
+        public async Task<ActionResult<Establishment>> Update(string id, [FromBody] Establishment establishment)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                establishment.Id = id;
+                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                
+                if (!success)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                return Ok(establishment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Partially update an establishment
+        /// </summary>
+        [HttpPatch("{id}")]
+        public async Task<ActionResult<Establishment>> Patch(string id, [FromBody] Dictionary<string, object> updates)
+        {
+            try
+            {
+                // Get existing establishment
+                var existingEstablishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                if (existingEstablishment == null)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                // Apply updates using reflection
+                var type = typeof(Establishment);
+                foreach (var update in updates)
+                {
+                    var property = type.GetProperty(update.Key);
+                    if (property != null && property.CanWrite)
+                    {
+                        try
+                        {
+                            var convertedValue = Convert.ChangeType(update.Value, property.PropertyType);
+                            property.SetValue(existingEstablishment, convertedValue);
+                        }
+                        catch (Exception)
+                        {
+                            // Skip invalid conversions
+                            _logger.LogWarning("Could not convert value for property {PropertyName}", update.Key);
+                        }
+                    }
+                }
+
+                existingEstablishment.UpdatedAt = DateTime.UtcNow;
+                var success = await _firebaseService.UpdateAsync(CollectionName, id, existingEstablishment);
+                
+                if (!success)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                return Ok(existingEstablishment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error patching establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Delete an establishment
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(string id)
+        {
+            try
+            {
+                var success = await _firebaseService.DeleteAsync(CollectionName, id);
+                
+                if (!success)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Soft delete (deactivate) an establishment
+        /// </summary>
+        [HttpPatch("{id}/deactivate")]
+        public async Task<ActionResult> Deactivate(string id)
+        {
+            try
+            {
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                if (establishment == null)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                establishment.IsActive = false;
+                establishment.UpdatedAt = DateTime.UtcNow;
+                
+                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                if (!success)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                return Ok(new { message = "Establishment deactivated successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deactivating establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Reactivate an establishment
+        /// </summary>
+        [HttpPatch("{id}/activate")]
+        public async Task<ActionResult> Activate(string id)
+        {
+            try
+            {
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                if (establishment == null)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                establishment.IsActive = true;
+                establishment.UpdatedAt = DateTime.UtcNow;
+                
+                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                if (!success)
+                {
+                    return NotFound($"Establishment with ID {id} not found");
+                }
+
+                return Ok(new { message = "Establishment activated successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error activating establishment with ID {Id}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Search establishments by name
+        /// </summary>
+        [HttpGet("search")]
+        public async Task<ActionResult<List<Establishment>>> Search([FromQuery] string name)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return BadRequest("Search name cannot be empty");
+                }
+
+                // Note: Firestore doesn't support case-insensitive or partial text search natively
+                // For production, consider using Algolia or implement a full-text search solution
+                var allEstablishments = await _firebaseService.GetAllAsync<Establishment>(CollectionName);
+                var filteredEstablishments = allEstablishments
+                    .Where(e => e.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                return Ok(filteredEstablishments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching establishments with name {Name}", name);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+    }
+}

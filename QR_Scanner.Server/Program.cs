@@ -1,3 +1,6 @@
+using Google.Cloud.Firestore;
+using QR_Scanner.Server.Services;
+
 namespace QR_Scanner.Server
 {
     public class Program
@@ -8,6 +11,32 @@ namespace QR_Scanner.Server
 
             // Add services to the container.
             builder.Services.AddControllers();
+            
+            // Configure Firebase
+            var projectId = builder.Configuration["Firebase:ProjectId"] ?? "qr-scanner-project";
+            var databaseName = builder.Configuration["Firebase:DatabaseName"] ?? "(default)";
+            
+            // Initialize Firestore
+            builder.Services.AddSingleton(provider =>
+            {
+                var credentialsPath = builder.Configuration["Firebase:CredentialsPath"];
+                
+                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+                {
+                    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+                }
+                
+                var firestoreBuilder = new FirestoreDbBuilder
+                {
+                    ProjectId = projectId,
+                    DatabaseId = databaseName
+                };
+                
+                return firestoreBuilder.Build();
+            });
+            
+            // Register Firebase service
+            builder.Services.AddScoped<IFirebaseService, FirebaseService>();
             
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
@@ -20,7 +49,19 @@ namespace QR_Scanner.Server
                 {
                     Title = "QR Scanner API",
                     Version = "v1",
-                    Description = "API for QR Scanner application"
+                    Description = "API for QR Scanner application with Firebase backend"
+                });
+            });
+
+            // Add CORS policy for frontend
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowReactApp", builder =>
+                {
+                    builder.WithOrigins("https://localhost:59910")
+                           .AllowAnyHeader()
+                           .AllowAnyMethod()
+                           .AllowCredentials();
                 });
             });
 
@@ -44,6 +85,7 @@ namespace QR_Scanner.Server
             }
 
             app.UseHttpsRedirection();
+            app.UseCors("AllowReactApp");
             app.UseAuthorization();
             app.MapControllers();
             app.MapFallbackToFile("/index.html");
