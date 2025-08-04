@@ -13,10 +13,12 @@ namespace QR_Scanner.Server.Services
     public class QRCodeService : IQRCodeService
     {
         private readonly ILogger<QRCodeService> _logger;
+        private readonly IConfiguration _configuration;
 
-        public QRCodeService(ILogger<QRCodeService> logger)
+        public QRCodeService(ILogger<QRCodeService> logger, IConfiguration configuration)
         {
             _logger = logger;
+            _configuration = configuration;
         }
 
         public byte[] GenerateQRCode(string content, int pixelsPerModule = 20)
@@ -41,8 +43,7 @@ namespace QR_Scanner.Server.Services
 
         public string GenerateRedirectUrl(string establishmentId, string baseUrl)
         {
-            // Create a redirect URL that points to our API endpoint
-            var redirectUrl = $"{baseUrl.TrimEnd('/')}/api/qr/redirect/{establishmentId}";
+            var redirectUrl = $"{baseUrl}/{establishmentId}";
             _logger.LogInformation($"Generated redirect URL: {redirectUrl} for establishment: {establishmentId}");
             return redirectUrl;
         }

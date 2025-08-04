@@ -59,42 +59,6 @@ namespace QR_Scanner.Server.Controllers
         }
 
         /// <summary>
-        /// Get establishments by type
-        /// </summary>
-        [HttpGet("type/{type}")]
-        public async Task<ActionResult<List<Establishment>>> GetByType(EstablishmentType type)
-        {
-            try
-            {
-                var establishments = await _firebaseService.GetByFieldAsync<Establishment>(CollectionName, "Type", type);
-                return Ok(establishments);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving establishments by type {Type}", type);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
-        /// Get establishments by city
-        /// </summary>
-        [HttpGet("city/{city}")]
-        public async Task<ActionResult<List<Establishment>>> GetByCity(string city)
-        {
-            try
-            {
-                var establishments = await _firebaseService.GetByFieldAsync<Establishment>(CollectionName, "City", city);
-                return Ok(establishments);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving establishments by city {City}", city);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
         /// Get active establishments only
         /// </summary>
         [HttpGet("active")]
@@ -166,77 +130,30 @@ namespace QR_Scanner.Server.Controllers
         }
 
         /// <summary>
-        /// Partially update an establishment
+        /// Search establishments by name
         /// </summary>
-        [HttpPatch("{id}")]
-        public async Task<ActionResult<Establishment>> Patch(string id, [FromBody] Dictionary<string, object> updates)
+        [HttpGet("search")]
+        public async Task<ActionResult<List<Establishment>>> Search([FromQuery] string name)
         {
             try
             {
-                // Get existing establishment
-                var existingEstablishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
-                if (existingEstablishment == null)
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return BadRequest("Search name cannot be empty");
                 }
 
-                // Apply updates using reflection
-                var type = typeof(Establishment);
-                foreach (var update in updates)
-                {
-                    var property = type.GetProperty(update.Key);
-                    if (property != null && property.CanWrite)
-                    {
-                        try
-                        {
-                            var convertedValue = Convert.ChangeType(update.Value, property.PropertyType);
-                            property.SetValue(existingEstablishment, convertedValue);
-                        }
-                        catch (Exception)
-                        {
-                            // Skip invalid conversions
-                            _logger.LogWarning("Could not convert value for property {PropertyName}", update.Key);
-                        }
-                    }
-                }
+                // Note: Firestore doesn't support case-insensitive or partial text search natively
+                // For production, consider using Algolia or implement a full-text search solution
+                var allEstablishments = await _firebaseService.GetAllAsync<Establishment>(CollectionName);
+                var filteredEstablishments = allEstablishments
+                    .Where(e => e.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-                existingEstablishment.UpdatedAt = DateTime.UtcNow;
-                var success = await _firebaseService.UpdateAsync(CollectionName, id, existingEstablishment);
-                
-                if (!success)
-                {
-                    return NotFound($"Establishment with ID {id} not found");
-                }
-
-                return Ok(existingEstablishment);
+                return Ok(filteredEstablishments);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error patching establishment with ID {Id}", id);
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
-        /// Delete an establishment
-        /// </summary>
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(string id)
-        {
-            try
-            {
-                var success = await _firebaseService.DeleteAsync(CollectionName, id);
-                
-                if (!success)
-                {
-                    return NotFound($"Establishment with ID {id} not found");
-                }
-
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error searching establishments with name {Name}", name);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -306,30 +223,25 @@ namespace QR_Scanner.Server.Controllers
         }
 
         /// <summary>
-        /// Search establishments by name
+        /// Delete an establishment
         /// </summary>
-        [HttpGet("search")]
-        public async Task<ActionResult<List<Establishment>>> Search([FromQuery] string name)
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> Delete(string id)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(name))
+                var success = await _firebaseService.DeleteAsync(CollectionName, id);
+
+                if (!success)
                 {
-                    return BadRequest("Search name cannot be empty");
+                    return NotFound($"Establishment with ID {id} not found");
                 }
 
-                // Note: Firestore doesn't support case-insensitive or partial text search natively
-                // For production, consider using Algolia or implement a full-text search solution
-                var allEstablishments = await _firebaseService.GetAllAsync<Establishment>(CollectionName);
-                var filteredEstablishments = allEstablishments
-                    .Where(e => e.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                return Ok(filteredEstablishments);
+                return NoContent();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching establishments with name {Name}", name);
+                _logger.LogError(ex, "Error deleting establishment with ID {Id}", id);
                 return StatusCode(500, "Internal server error");
             }
         }

@@ -1,4 +1,6 @@
 using Google.Cloud.Firestore;
+using QR_Scanner.Server.Models;
+using System.Collections;
 using System.Reflection;
 
 namespace QR_Scanner.Server.Services
