@@ -1,6 +1,4 @@
 using QRCoder;
-using System.Drawing;
-using System.Drawing.Imaging;
 
 namespace QR_Scanner.Server.Services
 {

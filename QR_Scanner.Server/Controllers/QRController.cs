@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using QR_Scanner.Server.Models;
 using QR_Scanner.Server.Services;
-using System.Buffers.Text;
 
 namespace QR_Scanner.Server.Controllers
 {
@@ -40,19 +38,19 @@ namespace QR_Scanner.Server.Controllers
                     return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
+                if (string.IsNullOrEmpty(establishment.QRCodeDataUrl))
+                {
+                    return BadRequest("QR code data URL is not set for this establishment");
+                }
+
                 var redirectUrl = _qrCodeService.GenerateRedirectUrl(establishmentId, baseUrl);
-
-                // Generate QR code image
-                var qrCodeBytes = _qrCodeService.GenerateQRCode(redirectUrl, size);
-
-                _logger.LogInformation("Generated QR code for establishment {EstablishmentName} ({EstablishmentId})", 
-                    establishment.Name, establishmentId);
+                var qrCodeBytes = _qrCodeService.GenerateQRCode(redirectUrl, 20);
 
                 return File(qrCodeBytes, "image/png", $"qr-{establishmentId}.png");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating QR code for establishment {EstablishmentId}", establishmentId);
+                _logger.LogError(ex, "Error getting QR code for establishment {EstablishmentId}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -96,6 +94,7 @@ namespace QR_Scanner.Server.Controllers
                         RedirectUrl = redirectUrl,
                         QRCodeDataUrl = $"data:image/png;base64,{base64String}"
                     });
+                    await _firebaseService.UpdateAsync(CollectionName, establishmentId, new { QRCodeDataUrl = $"data:image/png;base64,{base64String}" });
                 }
                 catch (Exception ex)
                 {

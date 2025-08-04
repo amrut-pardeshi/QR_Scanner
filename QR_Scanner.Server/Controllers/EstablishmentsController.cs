@@ -39,21 +39,21 @@ namespace QR_Scanner.Server.Controllers
         /// <summary>
         /// Get establishment by ID
         /// </summary>
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Establishment>> GetById(string id)
+        [HttpGet("{establishmentId}")]
+        public async Task<ActionResult<Establishment>> GetById(string establishmentId)
         {
             try
             {
-                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, establishmentId);
                 if (establishment == null)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
                 return Ok(establishment);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error retrieving establishment with ID {Id}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -80,7 +80,7 @@ namespace QR_Scanner.Server.Controllers
         /// Create a new establishment
         /// </summary>
         [HttpPost]
-        public async Task<ActionResult<Establishment>> Create([FromBody] Establishment establishment)
+        public async Task<ActionResult<Establishment>> Create([FromBody] CreateEstablishmentDto createDto)
         {
             try
             {
@@ -88,6 +88,9 @@ namespace QR_Scanner.Server.Controllers
                 {
                     return BadRequest(ModelState);
                 }
+
+                // Map DTO to Establishment entity using extension method
+                var establishment = createDto.ToEstablishment();
 
                 var id = await _firebaseService.CreateAsync(CollectionName, establishment);
                 
@@ -103,8 +106,8 @@ namespace QR_Scanner.Server.Controllers
         /// <summary>
         /// Update an existing establishment
         /// </summary>
-        [HttpPut("{id}")]
-        public async Task<ActionResult<Establishment>> Update(string id, [FromBody] Establishment establishment)
+        [HttpPut("{establishmentId}")]
+        public async Task<ActionResult<Establishment>> Update(string establishmentId, [FromBody] UpdateEstablishmentDto updateDto)
         {
             try
             {
@@ -113,18 +116,28 @@ namespace QR_Scanner.Server.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                // Get existing establishment to preserve Id and QRCodeDataUrl
+                var existingEstablishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, establishmentId);
+                if (existingEstablishment == null)
+                {
+                    return NotFound($"Establishment with ID {establishmentId} not found");
+                }
+
+                // Map DTO to Establishment entity using extension method
+                var establishment = updateDto.ToEstablishment(existingEstablishment);
+
+                var success = await _firebaseService.UpdateAsync(CollectionName, establishmentId, establishment);
                 
                 if (!success)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 return Ok(establishment);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error updating establishment with ID {Id}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -161,31 +174,31 @@ namespace QR_Scanner.Server.Controllers
         /// <summary>
         /// Soft delete (deactivate) an establishment
         /// </summary>
-        [HttpPatch("{id}/deactivate")]
-        public async Task<ActionResult> Deactivate(string id)
+        [HttpPatch("{establishmentId}/deactivate")]
+        public async Task<ActionResult> Deactivate(string establishmentId)
         {
             try
             {
-                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, establishmentId);
                 if (establishment == null)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 establishment.IsActive = false;
                 establishment.UpdatedAt = DateTime.UtcNow;
                 
-                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                var success = await _firebaseService.UpdateAsync(CollectionName, establishmentId, establishment);
                 if (!success)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 return Ok(new { message = "Establishment deactivated successfully" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deactivating establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error deactivating establishment with ID {Id}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -193,31 +206,31 @@ namespace QR_Scanner.Server.Controllers
         /// <summary>
         /// Reactivate an establishment
         /// </summary>
-        [HttpPatch("{id}/activate")]
-        public async Task<ActionResult> Activate(string id)
+        [HttpPatch("{establishmentId}/activate")]
+        public async Task<ActionResult> Activate(string establishmentId)
         {
             try
             {
-                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, id);
+                var establishment = await _firebaseService.GetByIdAsync<Establishment>(CollectionName, establishmentId);
                 if (establishment == null)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 establishment.IsActive = true;
                 establishment.UpdatedAt = DateTime.UtcNow;
                 
-                var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
+                var success = await _firebaseService.UpdateAsync(CollectionName, establishmentId, establishment);
                 if (!success)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 return Ok(new { message = "Establishment activated successfully" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error activating establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error activating establishment with ID {Id}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -225,23 +238,23 @@ namespace QR_Scanner.Server.Controllers
         /// <summary>
         /// Delete an establishment
         /// </summary>
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> Delete(string id)
+        [HttpDelete("{establishmentId}")]
+        public async Task<ActionResult> Delete(string establishmentId)
         {
             try
             {
-                var success = await _firebaseService.DeleteAsync(CollectionName, id);
+                var success = await _firebaseService.DeleteAsync(CollectionName, establishmentId);
 
                 if (!success)
                 {
-                    return NotFound($"Establishment with ID {id} not found");
+                    return NotFound($"Establishment with ID {establishmentId} not found");
                 }
 
                 return NoContent();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting establishment with ID {Id}", id);
+                _logger.LogError(ex, "Error deleting establishment with ID {Id}", establishmentId);
                 return StatusCode(500, "Internal server error");
             }
         }
