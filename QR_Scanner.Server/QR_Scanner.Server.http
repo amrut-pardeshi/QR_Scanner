@@ -1,6 +1,312 @@
-@QR_Scanner.Server_HostAddress = http://localhost:5216
+### QR Scanner API Test Collection
+### Base URL configuration
+@baseUrl = https://localhost:7154/api
+@establishmentId = {{$guid}}
+@menuId = {{$guid}}
 
-GET {{QR_Scanner.Server_HostAddress}}/weatherforecast/
+### Variables for testing
+@testEstablishmentName = Test Restaurant
+@testAddress = 123 Main Street
+@testCity = New York
+@testCountry = USA
+
+#####################################
+### ESTABLISHMENTS API
+#####################################
+
+### Get all establishments
+GET {{baseUrl}}/establishments
 Accept: application/json
 
 ###
+
+### Get establishment by ID
+GET {{baseUrl}}/establishments/{{establishmentId}}
+Accept: application/json
+
+###
+
+### Get active establishments only
+GET {{baseUrl}}/establishments/active
+Accept: application/json
+
+###
+
+### Search establishments by name
+GET {{baseUrl}}/establishments/search?name={{testEstablishmentName}}
+Accept: application/json
+
+###
+
+### Create a new establishment
+POST {{baseUrl}}/establishments
+Content-Type: application/json
+
+{
+  "name": "{{testEstablishmentName}}",
+  "address": "{{testAddress}}",
+  "city": "{{testCity}}",
+  "country": "{{testCountry}}",
+  "postalCode": "10001",
+  "phone": "+1234567890",
+  "email": "test@restaurant.com",
+  "type": 2,
+  "owner": {
+    "name": "John Doe",
+    "mobile": "+1234567890"
+  }
+}
+
+###
+
+### Update an existing establishment
+PUT {{baseUrl}}/establishments/{{establishmentId}}
+Content-Type: application/json
+
+{
+  "name": "{{testEstablishmentName}} Updated",
+  "address": "{{testAddress}} Updated",
+  "city": "{{testCity}}",
+  "country": "{{testCountry}}",
+  "postalCode": "10002",
+  "phone": "+1234567891",
+  "email": "updated@restaurant.com",
+  "type": 2,
+  "owner": {
+    "name": "Jane Doe",
+    "mobile": "+1234567891"
+  }
+}
+
+###
+
+### Deactivate an establishment
+PATCH {{baseUrl}}/establishments/{{establishmentId}}/deactivate
+Accept: application/json
+
+###
+
+### Activate an establishment
+PATCH {{baseUrl}}/establishments/{{establishmentId}}/activate
+Accept: application/json
+
+###
+
+### Delete an establishment
+DELETE {{baseUrl}}/establishments/{{establishmentId}}
+
+###
+
+#####################################
+### MENU API
+#####################################
+
+### Get all menus for an establishment
+GET {{baseUrl}}/establishments/{{establishmentId}}/menus
+Accept: application/json
+
+###
+
+### Get specific menu by ID
+GET {{baseUrl}}/establishments/{{establishmentId}}/menus/{{menuId}}
+Accept: application/json
+
+###
+
+### Create a new menu for establishment
+POST {{baseUrl}}/establishments/{{establishmentId}}/menus
+Content-Type: application/json
+
+{
+  "establishmentId": "{{establishmentId}}",
+  "name": "Main Menu",
+  "description": "Our primary menu with all available items"
+}
+
+###
+
+### Update a complete menu with full structure
+PUT {{baseUrl}}/establishments/{{establishmentId}}/menus/{{menuId}}
+Content-Type: application/json
+
+{
+  "name": "Updated Main Menu",
+  "description": "Updated menu description",
+  "isActive": true,
+  "categories": [
+    {
+      "name": "Appetizers",
+      "description": "Start your meal right",
+      "displayOrder": 1,
+      "isActive": true,
+      "subCategories": [
+        {
+          "name": "Hot Appetizers",
+          "description": "Served hot and fresh",
+          "displayOrder": 1,
+          "isActive": true,
+          "items": [
+            {
+              "name": "Buffalo Wings",
+              "description": "Spicy chicken wings with blue cheese dip",
+              "price": 12.99,
+              "currency": "USD",
+              "isAvailable": true,
+              "isVegetarian": false,
+              "isVegan": false,
+              "isGlutenFree": false,
+              "imageUrl": "https://example.com/buffalo-wings.jpg",
+              "allergens": ["Dairy", "Gluten"],
+              "preparationTimeMinutes": 15,
+              "displayOrder": 1
+            }
+          ]
+        },
+        {
+          "name": "Cold Appetizers",
+          "description": "Fresh and crisp",
+          "displayOrder": 2,
+          "isActive": true,
+          "items": [
+            {
+              "name": "Caesar Salad",
+              "description": "Crisp romaine lettuce with caesar dressing",
+              "price": 9.99,
+              "currency": "USD",
+              "isAvailable": true,
+              "isVegetarian": true,
+              "isVegan": false,
+              "isGlutenFree": false,
+              "allergens": ["Dairy", "Gluten"],
+              "preparationTimeMinutes": 10,
+              "displayOrder": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Main Courses",
+      "description": "Our signature dishes",
+      "displayOrder": 2,
+      "isActive": true,
+      "subCategories": [
+        {
+          "name": "Pasta",
+          "description": "Fresh homemade pasta",
+          "displayOrder": 1,
+          "isActive": true,
+          "items": [
+            {
+              "name": "Spaghetti Carbonara",
+              "description": "Classic Italian pasta with eggs, cheese, and pancetta",
+              "price": 18.99,
+              "currency": "USD",
+              "isAvailable": true,
+              "isVegetarian": false,
+              "isVegan": false,
+              "isGlutenFree": false,
+              "allergens": ["Dairy", "Gluten", "Eggs"],
+              "preparationTimeMinutes": 20,
+              "displayOrder": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Desserts",
+      "description": "Sweet endings",
+      "displayOrder": 3,
+      "isActive": true,
+      "subCategories": [
+        {
+          "name": "Cakes",
+          "description": "Homemade cakes",
+          "displayOrder": 1,
+          "isActive": true,
+          "items": [
+            {
+              "name": "Chocolate Cake",
+              "description": "Rich chocolate cake with chocolate frosting",
+              "price": 7.99,
+              "currency": "USD",
+              "isAvailable": true,
+              "isVegetarian": true,
+              "isVegan": false,
+              "isGlutenFree": false,
+              "allergens": ["Dairy", "Gluten", "Eggs"],
+              "preparationTimeMinutes": 5,
+              "displayOrder": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+###
+
+### Delete a menu
+DELETE {{baseUrl}}/establishments/{{establishmentId}}/menus/{{menuId}}
+
+###
+
+#####################################
+### QR CODE API
+#####################################
+
+### Generate QR code image for establishment (returns PNG image)
+GET {{baseUrl}}/qr/generate/{{establishmentId}}?size=20
+Accept: image/png
+
+###
+
+### Generate QR code with custom size
+GET {{baseUrl}}/qr/generate/{{establishmentId}}?size=25
+Accept: image/png
+
+###
+
+### Generate QR code and update establishment (returns JSON with base64 image)
+POST {{baseUrl}}/qr/generate/{{establishmentId}}
+Content-Type: application/json
+
+###
+
+#####################################
+### ESTABLISHMENT TYPES REFERENCE
+#####################################
+
+# EstablishmentType enum values:
+# 0 = Hotel
+# 1 = Cafe  
+# 2 = Restaurant
+# 3 = FastFood
+# 4 = Bar
+# 5 = Bakery
+# 6 = IceCream
+# 7 = TeaHouse
+
+#####################################
+### SAMPLE TEST WORKFLOW
+#####################################
+
+### 1. Create an establishment first
+# POST {{baseUrl}}/establishments
+
+### 2. Create a menu for the establishment  
+# POST {{baseUrl}}/establishments/{establishmentId}/menus
+
+### 3. Update the menu with full structure
+# PUT {{baseUrl}}/establishments/{establishmentId}/menus/{menuId}
+
+### 4. Generate QR code for the establishment
+# POST {{baseUrl}}/qr/generate/{establishmentId}
+
+### 5. Get the establishment to verify QR code was saved
+# GET {{baseUrl}}/establishments/{establishmentId}
+
+### 6. Test the QR code image generation
+# GET {{baseUrl}}/qr/generate/{establishmentId}
