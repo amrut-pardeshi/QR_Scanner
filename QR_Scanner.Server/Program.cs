@@ -38,6 +38,9 @@ namespace QR_Scanner.Server
             // Register Firebase service
             builder.Services.AddScoped<IFirebaseService, FirebaseService>();
             
+            // Register QR Code service
+            builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+            
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
             

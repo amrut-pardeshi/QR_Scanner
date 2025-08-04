@@ -126,7 +126,6 @@ namespace QR_Scanner.Server.Controllers
                 }
 
                 var id = await _firebaseService.CreateAsync(CollectionName, establishment);
-                establishment.Id = id;
                 
                 return CreatedAtAction(nameof(GetById), new { id }, establishment);
             }
@@ -150,7 +149,6 @@ namespace QR_Scanner.Server.Controllers
                     return BadRequest(ModelState);
                 }
 
-                establishment.Id = id;
                 var success = await _firebaseService.UpdateAsync(CollectionName, id, establishment);
                 
                 if (!success)
