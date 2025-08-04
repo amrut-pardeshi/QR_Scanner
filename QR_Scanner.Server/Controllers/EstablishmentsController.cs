@@ -93,8 +93,9 @@ namespace QR_Scanner.Server.Controllers
                 var establishment = createDto.ToEstablishment();
 
                 var id = await _firebaseService.CreateAsync(CollectionName, establishment);
+                establishment.Id = id;
                 
-                return CreatedAtAction(nameof(GetById), new { id }, establishment);
+                return CreatedAtAction(nameof(GetById), new { establishmentId = id }, establishment);
             }
             catch (Exception ex)
             {
