@@ -1,0 +1,6 @@
+@QR_Scanner.Server_HostAddress = http://localhost:5216
+
+GET {{QR_Scanner.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
